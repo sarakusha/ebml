@@ -7,7 +7,10 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
 
   readonly writable: WritableStream<EncodedVideoChunk>;
 
-  constructor(readonly config: Promise<VideoDecoderConfig>, maxPreloadFrames = MAX_PRELOAD_FRAMES) {
+  constructor(
+    readonly config: Promise<VideoDecoderConfig>,
+    maxPreloadFrames: number = MAX_PRELOAD_FRAMES,
+  ) {
     const pendingFrames: VideoFrame[] = [];
     const push = new Semaphore(maxPreloadFrames);
     const pull = new Semaphore(0);
@@ -18,39 +21,42 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
     let clearing = false;
     const clear = () => {
       clearing = true;
-      pendingFrames.splice(0).forEach(frame => frame.close());
+      pendingFrames.splice(0).forEach((frame) => frame.close());
       push.purge();
       pull.purge();
     };
     this.readable = new ReadableStream<VideoFrame>(
       {
-        pull: async controller => {
+        pull: async (controller) => {
           if (abort || (finished && pendingFrames.length === 0)) controller.close();
           else {
             try {
               await pull.acquire();
-              controller.enqueue(pendingFrames.shift());
+              const frame = pendingFrames.shift();
+              if (frame) {
+                controller.enqueue(frame);
+              }
               push.release();
             } catch (e) {
               controller.error(e);
             }
           }
         },
-        cancel: reason => {
+        cancel: (reason) => {
           cancel = reason;
           clear();
         },
       },
-      new CountQueuingStrategy({ highWaterMark: 1 })
+      new CountQueuingStrategy({ highWaterMark: 1 }),
     );
     this.writable = new WritableStream({
-      start: async controller => {
+      start: async (controller) => {
         decoder = new VideoDecoder({
-          output: async frame => {
+          output: async (frame) => {
             pendingFrames.push(frame);
             pull.release();
           },
-          error: err => {
+          error: (err) => {
             console.error('error while decode', err);
             controller.error(err);
           },
@@ -82,7 +88,7 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
         finished = true;
         clear();
       },
-      abort: reason => {
+      abort: (reason) => {
         abort = reason;
         decoder.close();
         clear();

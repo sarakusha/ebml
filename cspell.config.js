@@ -17,6 +17,7 @@ module.exports = {
     'libmatroska',
     'cppname',
     'divx',
+    'xiph',
     'minver',
     'maxver',
     'semaphor',

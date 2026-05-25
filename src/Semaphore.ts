@@ -5,7 +5,7 @@ export default class Semaphore {
 
   #waiting: WaitingPromise[] = [];
 
-  constructor(readonly max = 1) { }
+  constructor(readonly max = 1) {}
 
   protected take(): boolean {
     const promise = this.#waiting.shift();
@@ -35,7 +35,9 @@ export default class Semaphore {
 
   purge() {
     const unresolved = this.#waiting.splice(0);
-    unresolved.forEach(({ reject }) => { reject(new Error('Task has been purged.')); })
+    unresolved.forEach(({ reject }) => {
+      reject(new Error('Task has been purged.'));
+    });
     this.#counter = 0;
     return unresolved.length;
   }

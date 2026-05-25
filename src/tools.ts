@@ -1,5 +1,3 @@
-/* eslint-disable no-bitwise */
-
 export type VINT_WIDTH = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 export type VINT = {
@@ -17,7 +15,7 @@ export const readVINT = (uint8: Uint8Array): VINT | null => {
   if (uint8.length < width) return { width };
 
   // Max representable integer in JS
-  if (width === 8 && uint8[1] >= 0x20 && uint8.subarray(2, 8).some(b => b !== 0)) {
+  if (width === 8 && uint8[1] >= 0x20 && uint8.subarray(2, 8).some((b) => b !== 0)) {
     return {
       width: 8,
       data: -1,
@@ -73,7 +71,7 @@ export const readDate = (uint8: Uint8Array): Date => {
 };
 
 export const delay = (ms: number): Promise<void> =>
-  new Promise(resolve => {
+  new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
 
@@ -97,9 +95,9 @@ export const mergeStreams = <T>(...streams: ReadableStream<T>[]): MergeableStrea
             prev.then(() =>
               stream.pipeTo(writable, { preventClose: true }).then(() => {
                 total -= 1;
-              })
+              }),
             ),
-          ready
+          ready,
         );
         return ready;
       },

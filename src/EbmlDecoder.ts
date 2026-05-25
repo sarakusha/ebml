@@ -1,6 +1,5 @@
-/* eslint-disable no-bitwise */
-import { BlockLacing, isMasterElement, MasterElement, SimpleBlockElement } from './Element';
-import type { ContentElement, Element } from './Element';
+import { BlockLacing, isMasterElement } from './Element';
+import type { ContentElement, Element, MasterElement, SimpleBlockElement } from './Element';
 import findSpec, { type HexID } from './ElementSpec';
 import {
   readAscii,
@@ -48,7 +47,8 @@ const shift = (ref: Uint8ArrayRef, length: number): void => {
 };
 
 function* elementGenerator(ref: Uint8ArrayRef, length = ref.uint8.length): ElementGenerator {
-  for (let size = 0, remaining = length; remaining > 0; remaining -= size) {
+  let remaining = length;
+  while (remaining > 0) {
     let elementId = readVINT(ref.uint8);
     for (; elementId?.data == null; elementId = readVINT(ref.uint8)) {
       yield* waitForData(ref, elementId?.width);
@@ -60,7 +60,7 @@ function* elementGenerator(ref: Uint8ArrayRef, length = ref.uint8.length): Eleme
     for (; dataSize?.data == null; dataSize = readVINT(ref.uint8)) {
       yield* waitForData(ref, dataSize?.width);
     }
-    size = elementId.width + dataSize.width + dataSize.data;
+    const size = elementId.width + dataSize.width + dataSize.data;
     shift(ref, dataSize.width);
 
     const spec = findSpec(id);
@@ -169,16 +169,15 @@ function* elementGenerator(ref: Uint8ArrayRef, length = ref.uint8.length): Eleme
       }
       shift(ref, dataSize.data);
     }
+    remaining -= size;
   }
 }
 
 export default class EbmlDecoder extends TransformStream<Uint8Array, Element> {
   constructor() {
     let generator: ElementGenerator | undefined;
-    let total = 0;
     super({
       transform: (chunk, controller) => {
-        total += chunk.byteLength;
         let result: TransformIteratorResult<ElementGenerator>;
         if (!generator) {
           generator = elementGenerator({ uint8: chunk });

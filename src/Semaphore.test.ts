@@ -2,7 +2,7 @@ import Semaphore from './Semaphore';
 
 describe('Semaphore', () => {
   const log: string[] = [];
-  beforeAll(() => {
+  beforeEach(() => {
     log.length = 0;
   });
 
@@ -15,7 +15,7 @@ describe('Semaphore', () => {
       await semaphore.acquire();
       log.push(`PUSH#${index}`);
     }, Promise.resolve());
-    const pullFinished = new Promise<void>(resolve => {
+    const pullFinished = new Promise<void>((resolve) => {
       const pull = () => {
         if (remaining === 0) resolve();
         else {
@@ -70,7 +70,7 @@ describe('Semaphore', () => {
       log.push(`PULL#${index}`);
     }, Promise.resolve());
     let remaining = pullQueue.length;
-    const pushFinished = new Promise<void>(resolve => {
+    const pushFinished = new Promise<void>((resolve) => {
       const push = (step = 1) => {
         for (let i = 0; i < step; i += 1) {
           if (remaining === 0) {

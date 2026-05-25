@@ -22,7 +22,7 @@ export default class ReducingValve extends TransformStream<VideoFrame, VideoFram
 
   #frames = 0;
 
-  readonly id = Date.now().toString(16).slice(-6);
+  readonly id: string = Date.now().toString(16).slice(-6);
 
   get state(): ValveState {
     return this.#state;
@@ -99,12 +99,12 @@ export default class ReducingValve extends TransformStream<VideoFrame, VideoFram
             `!ReducingValve#${this.id}:flush, frames: ${this.#frames}, dropped: ${this.#dropped}(${(
               (100 * this.#dropped) /
               (this.#frames || 1)
-            ).toFixed(3)}%), outputs: ${total}`
+            ).toFixed(3)}%), outputs: ${total}`,
           );
           postMessage({ frames: this.#frames, dropped: this.#dropped });
         },
       },
-      new CountQueuingStrategy({ highWaterMark: 1 })
+      new CountQueuingStrategy({ highWaterMark: 1 }),
     );
     if (closed) this.close();
   }
@@ -126,7 +126,7 @@ export default class ReducingValve extends TransformStream<VideoFrame, VideoFram
     return performance.now() - this.#baseTime;
   }
 
-  private timerTick = () => {
+  private timerTick = (): void => {
     const { mediaTime } = this;
     const timer = Math.round(mediaTime / 1000);
     postMessage({
@@ -136,7 +136,7 @@ export default class ReducingValve extends TransformStream<VideoFrame, VideoFram
     // this.#timer = window.setTimeout(this.timerTick, nextTick(mediaTime + 1));
   };
 
-  protected calculateTimeUntilNextFrame = (timestamp: number) => {
+  protected calculateTimeUntilNextFrame = (timestamp: number): number => {
     const { mediaTime } = this;
     clearTimeout(this.#timer);
     this.#timer = setTimeout(this.timerTick, nextTick(mediaTime)) as unknown as number;

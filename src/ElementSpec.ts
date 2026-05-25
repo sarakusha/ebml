@@ -28,7 +28,7 @@ type Documentation<P extends Purpose = 'definition'> = {
 
 type ExtraDocumentation = [
   Documentation,
-  Documentation<'rationale'> | Documentation<'usage notes'>
+  Documentation<'rationale'> | Documentation<'usage notes'>,
 ];
 
 type WebmExtension = {
@@ -103,7 +103,7 @@ export type ElementSpec = {
 };
 
 const findSpec = (id: string): ElementSpec | undefined =>
-  (matroska.EBMLSchema.element.find(elm => elm['@_id'] === id) ??
-    ebml.EBMLSchema.element.find(elm => elm['@_id'] === id)) as ElementSpec;
+  (matroska.EBMLSchema.element.find((elm) => elm['@_id'] === id) ??
+    ebml.EBMLSchema.element.find((elm) => elm['@_id'] === id)) as ElementSpec;
 
 export default findSpec;

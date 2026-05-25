@@ -1,8 +1,5 @@
 import Deferred from './Deferred';
 import {
-  BlockElement,
-  ContentElement,
-  Element,
   isBlockElement,
   isBlockGroupElement,
   isContentElement,
@@ -12,6 +9,7 @@ import {
   isTimestamp,
   isTrackType,
 } from './Element';
+import type { BlockElement, ContentElement, Element } from './Element';
 import { readHexString } from './tools';
 
 const VIDEO = 1;
@@ -38,7 +36,7 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
     return this.#config.promise;
   }
 
-  readonly id = Date.now().toString(16).slice(-6);
+  readonly id: string = Date.now().toString(16).slice(-6);
 
   constructor() {
     let trackType: number | undefined;
@@ -122,7 +120,7 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
                   type: element.keyframe ? 'key' : 'delta',
                   timestamp: (offset + element.value) * 1000,
                   data: element.payload,
-                })
+                }),
               );
               total += 1;
             }
@@ -146,7 +144,7 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
                   type: hasReference ? 'delta' : 'key',
                   timestamp: (block.value + offset) * 1000,
                   data: block.payload,
-                })
+                }),
               );
               total += 1;
             }
@@ -161,7 +159,7 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
           this.#config.reject(err as Error);
         }
       },
-      flush: controller => {
+      flush: (controller) => {
         // console.info(
         //   `VideoChunkGenerator#${this.id}:flush total: ${total}, clusters: ${this.clusters.join()}`
         // );

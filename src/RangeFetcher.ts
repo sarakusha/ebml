@@ -1,4 +1,4 @@
-import CancelError from "./CancelError";
+import CancelError from './CancelError';
 
 type Options = {
   chunkSize?: number;
@@ -8,7 +8,7 @@ type Options = {
 export default class RangeFetcher extends ReadableStream<Uint8Array> {
   constructor(
     url: string,
-    { chunkSize = 32768, abortController = new AbortController() }: Options
+    { chunkSize = 32768, abortController = new AbortController() }: Options,
   ) {
     let from = 0;
     let total = Number.MAX_SAFE_INTEGER;
@@ -42,8 +42,11 @@ export default class RangeFetcher extends ReadableStream<Uint8Array> {
           }
           const reader = res.body.getReader();
           let length = 0;
-          // eslint-disable-next-line no-await-in-loop
-          for (let result = await reader.read(); !result.done && !cancelled; result = await reader.read()) {
+          for (
+            let result = await reader.read();
+            !result.done && !cancelled;
+            result = await reader.read()
+          ) {
             length += result.value.byteLength;
             controller.enqueue(result.value);
           }
@@ -54,7 +57,7 @@ export default class RangeFetcher extends ReadableStream<Uint8Array> {
             controller.close();
           } else {
             controller.error(error);
-            console.log('error while fetch', error, url);
+            console.error('error while fetch', error, url);
           }
         }
       },

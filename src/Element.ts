@@ -5,7 +5,7 @@ export const enum BlockLacing {
   Xiph,
   EBML,
   FixedSize,
-};
+}
 
 interface ContentTypeMap extends Record<ElementType, number | bigint | string | Date | Uint8Array> {
   uinteger: number | bigint;

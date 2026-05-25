@@ -6,7 +6,6 @@ export type FadeOptions = {
   duration?: number;
 };
 
-// eslint-disable-next-line no-return-assign
 const easeOutCubic = (t: number, b: number, c: number, d: number) =>
   // eslint-disable-next-line no-param-reassign
   c * ((t = t / d - 1) * t * t + 1) + b;
@@ -14,7 +13,7 @@ const easeOutCubic = (t: number, b: number, c: number, d: number) =>
 export default class FadeTransform extends TransformStream<VideoFrame, VideoFrame> {
   setDisableFadeOut: (value?: boolean) => void;
 
-  constructor({ disableIn, disableOut, duration: fadeDuration = 200 } = {} as FadeOptions) {
+  constructor({ disableIn, disableOut, duration: fadeDuration = 200 }: FadeOptions = {}) {
     let deferred: Deferred | undefined;
     let last: VideoFrame | undefined;
     let ctx: OffscreenCanvasRenderingContext2D | null = null;
@@ -58,7 +57,7 @@ export default class FadeTransform extends TransformStream<VideoFrame, VideoFram
         }
         controller.enqueue(chunk);
       },
-      flush: async controller => {
+      flush: async (controller) => {
         if (last && last.timestamp && !disableFadeOut) {
           if (!ctx) initialize(last);
           if (ctx) {
@@ -72,7 +71,7 @@ export default class FadeTransform extends TransformStream<VideoFrame, VideoFram
                 Math.max(0, fadeDuration - time),
                 0,
                 100,
-                fadeDuration
+                fadeDuration,
               );
               context.filter = `brightness(${brightness}%)`;
               context.drawImage(orig, 0, 0);

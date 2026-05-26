@@ -13,12 +13,12 @@ import {
 } from './tools';
 
 type TransformGenerator<I, O> = Generator<O | undefined, void, I | undefined>;
-type TransformIteratorResult<T> = T extends TransformGenerator<unknown, infer O>
-  ? IteratorResult<O | undefined, void>
-  : never;
-type WaitGenerator<T> = T extends TransformGenerator<infer I, unknown>
-  ? Generator<undefined, void, I | undefined>
-  : never;
+type TransformIteratorResult<T> =
+  T extends TransformGenerator<unknown, infer O> ? IteratorResult<O | undefined, void> : never;
+type WaitGenerator<T> =
+  T extends TransformGenerator<infer I, unknown>
+    ? Generator<undefined, void, I | undefined>
+    : never;
 
 type ElementGenerator = TransformGenerator<Uint8Array, Element>;
 type Uint8ArrayRef = { uint8: Uint8Array };
@@ -109,14 +109,14 @@ function* elementGenerator(ref: Uint8ArrayRef, length = ref.uint8.length): Eleme
           yield {
             ...element,
             data,
-            value: isEmpty ? defValue ?? '' : readAscii(data),
+            value: isEmpty ? (defValue ?? '') : readAscii(data),
           } as ContentElement<'string'>;
           break;
         case 'utf-8':
           yield {
             ...element,
             data,
-            value: isEmpty ? defValue ?? '' : readUtf8(data),
+            value: isEmpty ? (defValue ?? '') : readUtf8(data),
           } as ContentElement<'utf-8'>;
           break;
         case 'date':

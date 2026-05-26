@@ -12,39 +12,52 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
     maxPreloadFrames: number = MAX_PRELOAD_FRAMES,
   ) {
     const pendingFrames: VideoFrame[] = [];
-    const push = new Semaphore(maxPreloadFrames);
-    const pull = new Semaphore(0);
-    let decoder: VideoDecoder;
-    let cancel: unknown;
-    let abort: unknown;
+    const capacity = new Semaphore(maxPreloadFrames);
+    let readableController: ReadableStreamDefaultController<VideoFrame> | undefined;
+    let decoder: VideoDecoder | undefined;
     let finished = false;
-    let clearing = false;
-    const clear = () => {
-      clearing = true;
-      pendingFrames.splice(0).forEach((frame) => frame.close());
-      push.purge();
-      pull.purge();
+
+    const closeDecoder = () => {
+      if (decoder && decoder.state !== 'closed') decoder.close();
     };
+
+    const clear = () => {
+      pendingFrames.splice(0).forEach((frame) => frame.close());
+      capacity.purge();
+    };
+
+    const drain = () => {
+      if (!readableController) return;
+      while (pendingFrames.length > 0 && (readableController.desiredSize ?? 0) > 0) {
+        const frame = pendingFrames.shift();
+        if (frame) {
+          readableController.enqueue(frame);
+          capacity.release();
+        }
+      }
+      if (finished && pendingFrames.length === 0) {
+        readableController.close();
+        readableController = undefined;
+      }
+    };
+
+    const fail = (reason: unknown) => {
+      clear();
+      closeDecoder();
+      readableController?.error(reason);
+      readableController = undefined;
+    };
+
     this.readable = new ReadableStream<VideoFrame>(
       {
-        pull: async (controller) => {
-          if (abort || (finished && pendingFrames.length === 0)) controller.close();
-          else {
-            try {
-              await pull.acquire();
-              const frame = pendingFrames.shift();
-              if (frame) {
-                controller.enqueue(frame);
-              }
-              push.release();
-            } catch (e) {
-              controller.error(e);
-            }
-          }
+        start: (controller) => {
+          readableController = controller;
+        },
+        pull: () => {
+          drain();
         },
         cancel: (reason) => {
-          cancel = reason;
-          clear();
+          fail(reason);
         },
       },
       new CountQueuingStrategy({ highWaterMark: 1 }),
@@ -52,46 +65,51 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
     this.writable = new WritableStream({
       start: async (controller) => {
         decoder = new VideoDecoder({
-          output: async (frame) => {
+          output: (frame) => {
             pendingFrames.push(frame);
-            pull.release();
+            drain();
           },
           error: (err) => {
             console.error('error while decode', err);
             controller.error(err);
+            fail(err);
           },
         });
         try {
           decoder.configure(await this.config);
         } catch (err) {
           controller.error(err);
+          fail(err);
           console.error('error while configure', err);
         }
       },
       write: async (chunk, controller) => {
-        if (cancel) controller.error(cancel);
-        else {
-          try {
-            await push.acquire();
-            decoder.decode(chunk);
-          } catch (e) {
-            if (!clearing) {
-              console.error('error while decode chunk', e);
-              controller.error(e);
-            }
+        try {
+          await capacity.acquire();
+          if (!decoder || decoder.state === 'closed') {
+            controller.error(new Error('VideoDecoder is closed.'));
+            return;
+          }
+          decoder.decode(chunk);
+        } catch (e) {
+          if (decoder?.state !== 'closed') {
+            console.error('error while decode chunk', e);
+            controller.error(e);
           }
         }
       },
       close: async () => {
-        await decoder.flush();
-        decoder.close();
-        finished = true;
-        clear();
+        try {
+          await decoder?.flush();
+          closeDecoder();
+          finished = true;
+          drain();
+        } catch (err) {
+          fail(err);
+        }
       },
       abort: (reason) => {
-        abort = reason;
-        decoder.close();
-        clear();
+        fail(reason);
       },
     });
   }

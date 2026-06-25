@@ -7,7 +7,6 @@ import {
   isMasterElement,
   isSimpleBlockElement,
   isTimestamp,
-  isTrackType,
 } from './Element';
 import type { BlockElement, ContentElement, Element } from './Element';
 import { readHexString } from './tools';
@@ -39,13 +38,15 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
   readonly id: string = Date.now().toString(16).slice(-6);
 
   constructor() {
+    let inTrackEntry = false;
+    let trackNumber: number | undefined;
     let trackType: number | undefined;
+    let videoTrackNumber: number | undefined;
     let offset = 0;
     let block: BlockElement | undefined;
     let hasReference = false;
     let total = 0;
     const config: Partial<VideoDecoderConfig> = {};
-    const elements: Record<string, number> = {};
     const required: Record<string, keyof VideoDecoderConfig> = {
       PixelWidth: 'codedWidth',
       PixelHeight: 'codedHeight',
@@ -81,25 +82,55 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
         }
       }
     };
+    const isTrackNumber = (element: Element): element is ContentElement<'uinteger'> =>
+      element.name === 'TrackNumber' && isContentElement(element);
+
+    const isTrackType = (element: Element): element is ContentElement<'uinteger'> =>
+      element.name === 'TrackType' && isContentElement(element);
+
+    const isVideoBlock = (candidate: { track: number }): boolean =>
+      videoTrackNumber != null && candidate.track === videoTrackNumber;
+
     super({
       transform: async (element, controller) => {
-        elements[element.name] = (elements[element.name] ?? 0) + 1;
         try {
-          if (isTrackType(element)) {
-            trackType = element.value as number;
+          if (isMasterElement(element) && element.name === 'TrackEntry') {
+            if (element.isClosing) {
+              if (trackType === VIDEO && trackNumber != null) {
+                videoTrackNumber = trackNumber;
+                if (Object.keys(required).length === 0) {
+                  // console.info(`VideoChunkGenerator#${this.id}:config ${JSON.stringify(config)}`);
+                  this.#config.resolve(config as VideoDecoderConfig);
+                }
+              }
+              inTrackEntry = false;
+              trackNumber = undefined;
+              trackType = undefined;
+            } else {
+              inTrackEntry = true;
+              trackNumber = undefined;
+              trackType = undefined;
+            }
+            return;
+          }
+
+          if (inTrackEntry && isTrackNumber(element)) {
+            trackNumber = Number(element.value);
+            return;
+          }
+
+          if (inTrackEntry && isTrackType(element)) {
+            trackType = Number(element.value);
             return;
           }
           if (
+            inTrackEntry &&
+            trackType === VIDEO &&
             isContentElement(element) &&
-            required[element.name] &&
-            (trackType == null || trackType === VIDEO)
+            required[element.name]
           ) {
             parseConfig(element);
             delete required[element.name];
-            if (Object.keys(required).length === 0) {
-              // console.info(`VideoChunkGenerator#${this.id}:config ${JSON.stringify(config)}`);
-              this.#config.resolve(config as VideoDecoderConfig);
-            }
             return;
           }
 
@@ -114,7 +145,7 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
           }
 
           if (isSimpleBlockElement(element)) {
-            if (trackType === VIDEO) {
+            if (isVideoBlock(element)) {
               controller.enqueue(
                 new EncodedVideoChunk({
                   type: element.keyframe ? 'key' : 'delta',
@@ -138,7 +169,7 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
           }
 
           if (isBlockGroupElement(element) && element.isClosing) {
-            if (block) {
+            if (block && isVideoBlock(block)) {
               controller.enqueue(
                 new EncodedVideoChunk({
                   type: hasReference ? 'delta' : 'key',

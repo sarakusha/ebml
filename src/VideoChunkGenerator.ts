@@ -46,15 +46,20 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
     let block: BlockElement | undefined;
     let hasReference = false;
     let total = 0;
-    const config: Partial<VideoDecoderConfig> = {};
-    const required: Record<string, keyof VideoDecoderConfig> = {
+    const createRequired = (): Record<string, keyof VideoDecoderConfig> => ({
       PixelWidth: 'codedWidth',
       PixelHeight: 'codedHeight',
       CodecPrivate: 'codec',
       CodecID: 'codec',
-    };
+    });
+    let trackConfig: Partial<VideoDecoderConfig> = {};
+    let trackRequired = createRequired();
 
-    const parseConfig = (meta: ContentElement): void => {
+    const parseConfig = (
+      meta: ContentElement,
+      config: Partial<VideoDecoderConfig>,
+      required: Record<string, keyof VideoDecoderConfig>,
+    ): void => {
       switch (meta.name) {
         case 'CodecID': {
           const codec = getCodec(meta as ContentElement<'string'>);
@@ -81,6 +86,7 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
           }
         }
       }
+      delete required[meta.name];
     };
     const isTrackNumber = (element: Element): element is ContentElement<'uinteger'> =>
       element.name === 'TrackNumber' && isContentElement(element);
@@ -98,18 +104,22 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
             if (element.isClosing) {
               if (trackType === VIDEO && trackNumber != null) {
                 videoTrackNumber = trackNumber;
-                if (Object.keys(required).length === 0) {
-                  // console.info(`VideoChunkGenerator#${this.id}:config ${JSON.stringify(config)}`);
-                  this.#config.resolve(config as VideoDecoderConfig);
+                if (Object.keys(trackRequired).length === 0) {
+                  // console.info(`VideoChunkGenerator#${this.id}:config ${JSON.stringify(trackConfig)}`);
+                  this.#config.resolve(trackConfig as VideoDecoderConfig);
                 }
               }
               inTrackEntry = false;
               trackNumber = undefined;
               trackType = undefined;
+              trackConfig = {};
+              trackRequired = createRequired();
             } else {
               inTrackEntry = true;
               trackNumber = undefined;
               trackType = undefined;
+              trackConfig = {};
+              trackRequired = createRequired();
             }
             return;
           }
@@ -125,12 +135,10 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
           }
           if (
             inTrackEntry &&
-            trackType === VIDEO &&
             isContentElement(element) &&
-            required[element.name]
+            trackRequired[element.name]
           ) {
-            parseConfig(element);
-            delete required[element.name];
+            parseConfig(element, trackConfig, trackRequired);
             return;
           }
 

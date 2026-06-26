@@ -128,7 +128,7 @@ export default class ReducingValve extends TransformStream<VideoFrame, VideoFram
 
   private timerTick = (): void => {
     const { mediaTime } = this;
-    const timer = Math.round(mediaTime / 1000);
+    const timer = mediaTime / 1000;
     postMessage({
       timer,
       dropped: this.#dropped,

@@ -21,8 +21,13 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
     const getErrorMessage = (err: unknown): string =>
       err instanceof Error ? err.message : String(err);
 
-    const reportRecoverableError = (message: string, err: unknown) => {
-      postMessage({ debug: `${message}: ${getErrorMessage(err)}` });
+    const reportRecoverableError = (message: string, err: unknown, recover = false) => {
+      const errorMessage = getErrorMessage(err);
+      const payload: { debug: string; recoverableError?: { message: string } } = {
+        debug: `${message}: ${errorMessage}`,
+      };
+      if (recover) payload.recoverableError = { message: errorMessage };
+      postMessage(payload);
     };
 
     const closeDecoder = () => {
@@ -86,7 +91,7 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
           },
           error: (err) => {
             console.error('error while decode', err);
-            reportRecoverableError('recoverable decoder error, ending video source', err);
+            reportRecoverableError('recoverable decoder error, ending video source', err, true);
             controller.error(err);
             finish();
           },

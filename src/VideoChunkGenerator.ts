@@ -47,6 +47,7 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
     let hasReference = false;
     let total = 0;
     const startTimestamp = Math.max(0, startTime * 1000);
+    let timestampBase = startTimestamp;
     let waitingForKeyframe = startTimestamp > 0;
     const enqueueChunk = (
       controller: TransformStreamDefaultController<EncodedVideoChunk>,
@@ -57,12 +58,14 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
       if (timestamp < startTimestamp) return;
       if (waitingForKeyframe) {
         if (type !== 'key') return;
+        timestampBase = timestamp;
         waitingForKeyframe = false;
+        postMessage({ seekStartTime: timestamp / 1000 });
       }
       controller.enqueue(
         new EncodedVideoChunk({
           type,
-          timestamp: (timestamp - startTimestamp) * 1000,
+          timestamp: (timestamp - timestampBase) * 1000,
           data: data as BufferSource,
         }),
       );

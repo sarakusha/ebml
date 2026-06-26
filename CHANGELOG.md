@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.7](https://github.com/sarakusha/ebml/compare/v0.0.6...v0.0.7) (2026-06-26)
+
+
+### Bug Fixes
+
+* log recoverable video decode errors ([e1e5e85](https://github.com/sarakusha/ebml/commit/e1e5e8512a537ec8f2774aaaff4ed58aea11369a))
+* tolerate decoder frame failures ([9b1f65c](https://github.com/sarakusha/ebml/commit/9b1f65c2d0df88f5c5a004a5e94994e4a6618fb5))
+
 ### [0.0.6](https://github.com/sarakusha/ebml/compare/v0.0.5...v0.0.6) (2026-06-25)
 
 

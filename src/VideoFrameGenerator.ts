@@ -16,6 +16,7 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
     let readableController: ReadableStreamDefaultController<VideoFrame> | undefined;
     let decoder: VideoDecoder | undefined;
     let finished = false;
+    let acceptChunks = true;
 
     const closeDecoder = () => {
       if (decoder && decoder.state !== 'closed') decoder.close();
@@ -39,6 +40,13 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
         readableController.close();
         readableController = undefined;
       }
+    };
+
+    const finish = () => {
+      acceptChunks = false;
+      closeDecoder();
+      finished = true;
+      drain();
     };
 
     const fail = (reason: unknown) => {
@@ -72,7 +80,7 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
           error: (err) => {
             console.error('error while decode', err);
             controller.error(err);
-            fail(err);
+            finish();
           },
         });
         try {
@@ -83,29 +91,29 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
           console.error('error while configure', err);
         }
       },
-      write: async (chunk, controller) => {
+      write: async (chunk) => {
         try {
+          if (!acceptChunks) return;
           await capacity.acquire();
           if (!decoder || decoder.state === 'closed') {
-            controller.error(new Error('VideoDecoder is closed.'));
+            capacity.release();
             return;
           }
           decoder.decode(chunk);
         } catch (e) {
           if (decoder?.state !== 'closed') {
             console.error('error while decode chunk', e);
-            controller.error(e);
+            capacity.release();
           }
         }
       },
       close: async () => {
         try {
           await decoder?.flush();
-          closeDecoder();
-          finished = true;
-          drain();
+          finish();
         } catch (err) {
-          fail(err);
+          console.error('error while flush decoder', err);
+          finish();
         }
       },
       abort: (reason) => {

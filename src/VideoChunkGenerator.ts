@@ -37,7 +37,7 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
 
   readonly id: string = Date.now().toString(16).slice(-6);
 
-  constructor() {
+  constructor({ startTime = 0 }: { startTime?: number } = {}) {
     let inTrackEntry = false;
     let trackNumber: number | undefined;
     let trackType: number | undefined;
@@ -46,6 +46,28 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
     let block: BlockElement | undefined;
     let hasReference = false;
     let total = 0;
+    const startTimestamp = Math.max(0, startTime * 1000);
+    let waitingForKeyframe = startTimestamp > 0;
+    const enqueueChunk = (
+      controller: TransformStreamDefaultController<EncodedVideoChunk>,
+      type: EncodedVideoChunkType,
+      timestamp: number,
+      data: Uint8Array,
+    ): void => {
+      if (timestamp < startTimestamp) return;
+      if (waitingForKeyframe) {
+        if (type !== 'key') return;
+        waitingForKeyframe = false;
+      }
+      controller.enqueue(
+        new EncodedVideoChunk({
+          type,
+          timestamp: (timestamp - startTimestamp) * 1000,
+          data: data as BufferSource,
+        }),
+      );
+      total += 1;
+    };
     const createRequired = (): Record<string, keyof VideoDecoderConfig> => ({
       PixelWidth: 'codedWidth',
       PixelHeight: 'codedHeight',
@@ -133,11 +155,7 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
             trackType = Number(element.value);
             return;
           }
-          if (
-            inTrackEntry &&
-            isContentElement(element) &&
-            trackRequired[element.name]
-          ) {
+          if (inTrackEntry && isContentElement(element) && trackRequired[element.name]) {
             parseConfig(element, trackConfig, trackRequired);
             return;
           }
@@ -154,14 +172,12 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
 
           if (isSimpleBlockElement(element)) {
             if (isVideoBlock(element)) {
-              controller.enqueue(
-                new EncodedVideoChunk({
-                  type: element.keyframe ? 'key' : 'delta',
-                  timestamp: (offset + element.value) * 1000,
-                  data: element.payload,
-                }),
+              enqueueChunk(
+                controller,
+                element.keyframe ? 'key' : 'delta',
+                offset + element.value,
+                element.payload,
               );
-              total += 1;
             }
             return;
           }
@@ -178,14 +194,12 @@ export default class VideoChunkGenerator extends TransformStream<Element, Encode
 
           if (isBlockGroupElement(element) && element.isClosing) {
             if (block && isVideoBlock(block)) {
-              controller.enqueue(
-                new EncodedVideoChunk({
-                  type: hasReference ? 'delta' : 'key',
-                  timestamp: (block.value + offset) * 1000,
-                  data: block.payload,
-                }),
+              enqueueChunk(
+                controller,
+                hasReference ? 'delta' : 'key',
+                block.value + offset,
+                block.payload,
               );
-              total += 1;
             }
             block = undefined;
             hasReference = false;

@@ -18,6 +18,13 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
     let finished = false;
     let acceptChunks = true;
 
+    const getErrorMessage = (err: unknown): string =>
+      err instanceof Error ? err.message : String(err);
+
+    const reportRecoverableError = (message: string, err: unknown) => {
+      postMessage({ debug: `${message}: ${getErrorMessage(err)}` });
+    };
+
     const closeDecoder = () => {
       if (decoder && decoder.state !== 'closed') decoder.close();
     };
@@ -79,6 +86,7 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
           },
           error: (err) => {
             console.error('error while decode', err);
+            reportRecoverableError('recoverable decoder error, ending video source', err);
             controller.error(err);
             finish();
           },
@@ -103,6 +111,7 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
         } catch (e) {
           if (decoder?.state !== 'closed') {
             console.error('error while decode chunk', e);
+            reportRecoverableError('dropping encoded video chunk after decode error', e);
             capacity.release();
           }
         }
@@ -113,6 +122,7 @@ export default class VideoFrameGenerator implements TransformStream<EncodedVideo
           finish();
         } catch (err) {
           console.error('error while flush decoder', err);
+          reportRecoverableError('recoverable decoder flush error, ending video source', err);
           finish();
         }
       },

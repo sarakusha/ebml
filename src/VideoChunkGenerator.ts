@@ -1,3 +1,4 @@
+/* eslint-disable no-param-reassign */
 import Deferred from './Deferred';
 import {
   isBlockElement,

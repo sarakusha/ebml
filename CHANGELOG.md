@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.8](https://github.com/sarakusha/ebml/compare/v0.0.7...v0.0.8) (2026-06-29)
+
+
+### Features
+
+* support video chunk seeking ([f1873da](https://github.com/sarakusha/ebml/commit/f1873daea84aa3a705b0734eef7bf4fb26134b91))
+
+
+### Bug Fixes
+
+* report decoder recovery metadata ([1ceee8f](https://github.com/sarakusha/ebml/commit/1ceee8f7db240657bb79c0028360f80f912bd5df))
+
 ### [0.0.7](https://github.com/sarakusha/ebml/compare/v0.0.6...v0.0.7) (2026-06-26)
 
 
